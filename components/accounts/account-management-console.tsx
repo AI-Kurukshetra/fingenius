@@ -33,6 +33,7 @@ type AccountManagementConsoleProps = {
   accounts: AccountRecord[];
   customers: CustomerOption[];
   canCreate: boolean;
+  defaultCustomerId?: string;
   error?: string;
   message?: string;
 };
@@ -49,6 +50,7 @@ export const AccountManagementConsole = ({
   accounts,
   customers,
   canCreate,
+  defaultCustomerId,
   error,
   message
 }: AccountManagementConsoleProps) => {
@@ -57,6 +59,7 @@ export const AccountManagementConsole = ({
   const [statusFilter, setStatusFilter] = useState("all");
   const [productFilter, setProductFilter] = useState("all");
   const [isCreating, setIsCreating] = useState(false);
+  const [updatingAccountId, setUpdatingAccountId] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(error ?? null);
   const [serverMessage, setServerMessage] = useState<string | null>(message ?? null);
 
@@ -109,6 +112,36 @@ export const AccountManagementConsole = ({
     }
   };
 
+  const handleUpdateAccountStatus = async (accountId: string, status: string) => {
+    setServerError(null);
+    setServerMessage(null);
+    setUpdatingAccountId(accountId);
+
+    try {
+      await parseApiResponse(
+        await fetch("/api/v1/accounts", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            accountId,
+            status
+          })
+        })
+      );
+
+      setServerMessage(`Account status updated to ${status}.`);
+      router.refresh();
+    } catch (requestError) {
+      setServerError(
+        requestError instanceof Error ? requestError.message : "Unable to update account status."
+      );
+    } finally {
+      setUpdatingAccountId(null);
+    }
+  };
+
   return (
     <main className="space-y-6 p-4 sm:p-6">
       <section className="rounded-3xl border border-slate-200/70 bg-gradient-to-r from-[#082f49] via-[#0c4a6e] to-[#115e59] p-6 text-white shadow-[0_20px_60px_-45px_rgba(8,47,73,0.9)] sm:p-8">
@@ -135,14 +168,19 @@ export const AccountManagementConsole = ({
               <form className="space-y-3" onSubmit={handleCreateAccount}>
                 <label className="block text-sm">
                   <span className="mb-1 block font-medium text-slate-700">Customer</span>
-                  <select className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm" name="customerId" required>
-                    <option value="">Select customer</option>
-                    {customers.map((customer) => (
-                      <option key={customer.id} value={customer.id}>
-                        {customer.fullName} ({customer.externalCustomerRef})
-                      </option>
-                    ))}
-                  </select>
+                  <select
+                      className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                      defaultValue={defaultCustomerId ?? ""}
+                      name="customerId"
+                      required
+                    >
+                      <option value="">Select customer</option>
+                      {customers.map((customer) => (
+                        <option key={customer.id} value={customer.id}>
+                          {customer.fullName} ({customer.externalCustomerRef})
+                        </option>
+                      ))}
+                    </select>
                 </label>
 
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -230,7 +268,8 @@ export const AccountManagementConsole = ({
                       <th className="pb-2 pr-3 font-medium">Customer</th>
                       <th className="pb-2 pr-3 font-medium">Product</th>
                       <th className="pb-2 pr-3 font-medium">Status</th>
-                      <th className="pb-2 font-medium">Created</th>
+                      <th className="pb-2 pr-3 font-medium">Created</th>
+                      <th className="pb-2 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -242,7 +281,39 @@ export const AccountManagementConsole = ({
                         <td className="py-3 pr-3">
                           <Badge tone={toneForStatus(account.status)}>{account.status}</Badge>
                         </td>
-                        <td className="py-3 text-slate-600">{new Date(account.createdAt).toLocaleString()}</td>
+                        <td className="py-3 pr-3 text-slate-600">{new Date(account.createdAt).toLocaleString()}</td>
+                        <td className="py-3">
+                          {canCreate && account.status !== "closed" ? (
+                            <form
+                              className="flex flex-wrap items-center gap-2"
+                              onSubmit={(event) => {
+                                event.preventDefault();
+                                const formData = new FormData(event.currentTarget);
+                                void handleUpdateAccountStatus(
+                                  account.id,
+                                  String(formData.get("status") ?? account.status)
+                                );
+                              }}
+                            >
+                              <select
+                                className="h-10 rounded-xl border border-slate-300 px-2 text-xs"
+                                defaultValue={account.status}
+                                name="status"
+                              >
+                                <option value="active">active</option>
+                                <option value="frozen">frozen</option>
+                                <option value="closed">closed</option>
+                              </select>
+                              <PendingSubmitButton
+                                isLoading={updatingAccountId === account.id}
+                                label="Apply"
+                                pendingLabel="Saving..."
+                              />
+                            </form>
+                          ) : (
+                            <span className="text-xs text-slate-500">No actions</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

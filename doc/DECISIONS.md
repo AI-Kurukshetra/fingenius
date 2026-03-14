@@ -1,5 +1,14 @@
 # DECISIONS
 
+## 2026-03-14 — Payments run in simulated-success mode until external rail activation
+At this stage, payment actions write successful transfer records directly to `payment_transfers` without calling external Stripe APIs. All payment APIs/UI consume a service abstraction (`lib/payments/service.ts`) so a Stripe adapter can be enabled later with minimal surface changes.
+
+## 2026-03-14 — Stripe integration shape reserved in `payment_transfers` (future)
+Keep `payment_transfers` contract and webhook endpoints Stripe-compatible so a real adapter can be enabled later; current runtime uses simulated-success service behavior without external provider calls.
+
+## 2026-03-14 — Tenant-scoped onboarding documents use private Supabase Storage
+Store onboarding documents in private bucket `customer-documents` under path `{tenant_id}/{customer_id}/...` with `storage.objects` tenant membership RLS checks and signed URL reads; persist metadata in `customer_documents` so document workflows are real uploads, not placeholders.
+
 ## 2026-03-14 — Multi-tenant by default
 All business tables include `tenant_id`; RLS enforces tenant membership checks using `(select auth.uid())`.
 

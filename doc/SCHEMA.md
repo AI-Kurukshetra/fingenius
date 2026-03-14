@@ -3,12 +3,29 @@
 ## Migration History
 - `20260314120300_initial_core_banking_mvp.sql`
 - `20260314122100_authn_authz_layer.sql`
+- `20260314180000_onboarding_module.sql` — customer onboarding: extended profile, KYC, AML, documents, status workflow, compliance reviews
+- `20260314193000_payments_and_document_uploads.sql` — payment transfer lifecycle metadata + idempotency, customer document upload metadata, private Storage bucket + tenant RLS policies for uploaded files
 
 ## Implemented AuthN/AuthZ Additions
 - `user_role_assignments` (tenant-scoped role grants)
 - `auth_sessions` (session tracking/revocation)
 - `user_profiles` trigger from `auth.users` inserts
 - `audit_logs` insert policy for authenticated tenant members
+
+## Implemented Payments/Document Upload Additions
+- Current runtime behavior: payment creation/reconciliation uses simulated-success provider service with DB writes only; Stripe adapter is deferred but table contract remains compatible.
+- `payment_transfers` columns:
+  - `idempotency_key text` (tenant-scoped uniqueness for retry safety)
+  - `created_by uuid` (audit attribution)
+  - `metadata jsonb` (provider state snapshot)
+  - `last_error text` (provider failure reason)
+  - `reconciled_at timestamptz`, `updated_at timestamptz`
+- `customer_documents` columns:
+  - `mime_type text`, `file_size_bytes bigint`, `uploaded_by uuid`
+- Supabase Storage:
+  - private bucket `customer-documents`
+  - object path convention `{tenant_id}/{customer_id}/{file}`
+  - tenant-membership RLS policies on `storage.objects` for select/insert/update/delete
 
 ## Scope
 Initial MVP schema blueprint for these core entities:

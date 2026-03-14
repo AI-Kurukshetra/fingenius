@@ -26,6 +26,10 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
 
   const canCreate = hasPermissionInContext(context, "customer:write");
   const canRead = canCreate || hasPermissionInContext(context, "customer:read");
+  const canReview =
+    hasPermissionInContext(context, "kyc:review") ||
+    hasPermissionInContext(context, "aml:review") ||
+    hasPermissionInContext(context, "compliance:manage");
 
   if (!canRead) {
     redirect("/unauthorized?reason=customer_permission_required");
@@ -34,7 +38,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase
     .from("customers")
-    .select("id, external_customer_ref, full_name, email, kyc_status, risk_tier, created_at")
+    .select("id, external_customer_ref, full_name, email, kyc_status, risk_tier, onboarding_status, created_at")
     .eq("tenant_id", context.tenantId)
     .order("created_at", { ascending: false })
     .limit(250);
@@ -42,6 +46,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
   return (
     <CustomerOnboardingConsole
       canCreate={canCreate}
+      canReviewQueue={canReview}
       customers={(data ?? []).map((customer) => ({
         id: customer.id,
         externalCustomerRef: customer.external_customer_ref,
@@ -49,6 +54,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
         email: customer.email,
         kycStatus: customer.kyc_status,
         riskTier: customer.risk_tier,
+        onboardingStatus: (customer as { onboarding_status?: string }).onboarding_status ?? "draft",
         createdAt: customer.created_at
       }))}
       error={params?.error}

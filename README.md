@@ -19,7 +19,7 @@ The initial scope prioritizes:
 5. Compliance monitoring
 6. Admin dashboard metrics
 7. Public API layer
-8. One payment integration (`stripe`)
+8. Simulated payment rail now, Stripe-ready service abstraction for later activation
 
 Advanced AI features are intentionally excluded at this stage.
 
@@ -48,6 +48,7 @@ Advanced AI features are intentionally excluded at this stage.
 │   │   ├── customers/page.tsx
 │   │   ├── transactions/page.tsx
 │   │   ├── loans/page.tsx
+│   │   ├── payments/page.tsx
 │   │   ├── compliance/page.tsx
 │   │   └── admin/page.tsx
 │   └── api/v1/
@@ -55,6 +56,8 @@ Advanced AI features are intentionally excluded at this stage.
 │       ├── accounts/route.ts
 │       ├── transactions/route.ts
 │       ├── loans/route.ts
+│       ├── payments/transfers/route.ts
+│       ├── payments/stripe/webhook/route.ts
 │       ├── compliance/events/route.ts
 │       └── admin/metrics/route.ts
 ├── lib/
@@ -84,7 +87,7 @@ Advanced AI features are intentionally excluded at this stage.
    - Compliance event capture and case handling queue
 4. **Phase 4: Admin + Integration**
    - Admin dashboard metrics and operational tooling
-   - Stripe transfer initiation/reconciliation path
+   - Simulated transfer initiation/reconciliation path (Stripe adapter deferred)
 5. **Phase 5: Hardening**
    - Unit tests + E2E coverage for critical journeys
    - Monitoring/alerts, API key management, audit export
@@ -104,8 +107,9 @@ If your database has no records, run the demo seeder.
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `SEED_SUPERADMIN_EMAIL`
-2. Optional: add `SEED_SUPERADMIN_PASSWORD` to auto-create this auth user if missing.
-3. Run:
+2. Optional (future live provider integration): set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`.
+3. Optional: add `SEED_SUPERADMIN_PASSWORD` to auto-create this auth user if missing.
+4. Run:
 
 ```bash
 pnpm seed

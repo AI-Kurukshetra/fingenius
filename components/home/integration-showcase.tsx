@@ -9,13 +9,13 @@ import { Tabs } from "@/components/ui/tabs";
 const integrationCards = {
   payments: {
     title: "Payment rail integration",
-    subtitle: "Stripe transfer orchestration with reconciliation-ready event records.",
+    subtitle: "Simulated transfer orchestration with reconciliation-ready event records.",
     bullets: [
-      "Provider references persisted per tenant",
+      "Successful payment records created directly in DB",
       "Status lifecycle synced to payment_transfers",
-      "Supports webhook-driven settlement updates"
+      "Service abstraction ready for future Stripe adapter"
     ],
-    href: "/transactions"
+    href: "/payments"
   },
   api: {
     title: "API-first architecture",

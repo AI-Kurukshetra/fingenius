@@ -1,5 +1,49 @@
 # CHANGELOG
 
+## 2026-03-14 (payments simulation mode, Stripe deferred)
+- Replaced direct Stripe API usage in payment flow with simulated-success service adapter (`lib/payments/service.ts`) that writes successful transfers directly to DB.
+- Updated `POST/PATCH /api/v1/payments/transfers` to use payment service abstraction; route contracts remain stable for future provider adapter swap.
+- Added explicit TODO scaffolding for future Stripe integration in service and routes.
+- Converted `POST /api/v1/payments/stripe/webhook` to deferred/no-op response with clear TODO and integration-disabled reason.
+- Updated payments dashboard copy to reflect simulated mode (removed Stripe-specific runtime wording and options).
+- Updated integration/FAQ copy to describe simulated payment flow + future provider adapter path.
+
+## 2026-03-14 (payments + uploads end-to-end)
+- Added migration `20260314193000_payments_and_document_uploads.sql`:
+  - Extended `payment_transfers` with `idempotency_key`, `created_by`, `metadata`, `last_error`, `reconciled_at`, `updated_at`, plus indexes for idempotency/status.
+  - Extended `customer_documents` with `mime_type`, `file_size_bytes`, `uploaded_by`.
+  - Added `customer-documents` private Storage bucket and tenant-scoped `storage.objects` RLS policies.
+- Added Stripe integration helper `lib/payments/stripe.ts` with PaymentIntent creation/retrieval and webhook signature verification.
+- Added payments API surface:
+  - `GET/POST/PATCH /api/v1/payments/transfers` for list/create/reconcile transfer lifecycle.
+  - `POST /api/v1/payments/stripe/webhook` for provider callback reconciliation.
+- Added dashboard payments product module:
+  - New page `app/(dashboard)/payments/page.tsx` + loading state.
+  - New UI `components/payments/payment-transfer-console.tsx` with form pending states, status filters, reconcile actions, and success/error messaging.
+  - Added `Payments` nav entry in dashboard shell.
+- Upgraded onboarding document flow from placeholders to real uploads:
+  - `POST /api/v1/onboarding/[customerId]/documents` now supports multipart upload, stores metadata, and uploads to Supabase Storage.
+  - `GET` now returns signed download URLs.
+  - Updated onboarding detail UI to upload files, show file metadata, and open signed documents.
+- Added account status lifecycle mutation:
+  - `PATCH /api/v1/accounts` for `active|frozen|closed` transitions with transition guards.
+  - Updated account console table with row-level status action control and loading state.
+- Added service-role audit logger helper (`safeLogAuditEventWithServiceRole`) for non-user webhook reconciliation paths.
+
+## 2026-03-14 (E2E hardening)
+- Audit logger: `resource_id` insert now uses `String(event.resourceId)` for DB compatibility.
+- Dashboard header: replaced inline logout form with `LogoutButton` client component so sign-out shows "Signing out…" and disables button while pending.
+- Added `app/(dashboard)/customers/queue/loading.tsx` for onboarding queue loading state.
+
+## 2026-03-14 (onboarding module)
+- Added customer onboarding module: create customer profile, KYC details, AML details, document placeholders, onboarding status workflow, account opening handoff.
+- Migration `20260314180000_onboarding_module.sql`: extended `customers` (type, phone, country_code, onboarding_status), added `customer_kyc_details`, `customer_aml_details`, `customer_documents`, `onboarding_reviews`; RLS for all.
+- Added onboarding state machine (`lib/onboarding/state-machine.ts`) with statuses and allowed transitions.
+- Extended validations (`lib/validations/onboarding.ts`): profile update, KYC, AML, document placeholder, transition, review.
+- New API routes: GET/PATCH ` /api/v1/onboarding/[customerId]`, GET/PUT `.../kyc`, GET/PUT `.../aml`, GET/POST `.../documents`, POST `.../transition`, GET/POST `.../reviews`, GET `/api/v1/onboarding/queue`.
+- Account opening: only allow when `onboarding_status` is `ready_for_account_opening` or `profile_complete` (legacy).
+- Frontend: customers list shows onboarding status and “Open” link; detail page `customers/[customerId]` with Profile/KYC/AML/Documents/Status/Reviews and KYC/AML forms; compliance review queue at `customers/queue`; “Open account” handoff when ready.
+
 ## 2026-03-14
 - Added base Next.js + TypeScript + Tailwind + pnpm project scaffolding.
 - Added Supabase SSR client/middleware utilities.

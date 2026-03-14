@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -19,6 +20,7 @@ type CustomerRecord = {
   email: string;
   kycStatus: string;
   riskTier: string;
+  onboardingStatus: string;
   createdAt: string;
 };
 
@@ -26,6 +28,7 @@ type CustomerOnboardingConsoleProps = {
   tenantId: string;
   customers: CustomerRecord[];
   canCreate: boolean;
+  canReviewQueue?: boolean;
   error?: string;
   message?: string;
 };
@@ -41,6 +44,7 @@ export const CustomerOnboardingConsole = ({
   tenantId,
   customers,
   canCreate,
+  canReviewQueue,
   error,
   message
 }: CustomerOnboardingConsoleProps) => {
@@ -107,13 +111,25 @@ export const CustomerOnboardingConsole = ({
   return (
     <main className="space-y-6 p-4 sm:p-6">
       <section className="rounded-3xl border border-slate-200/70 bg-gradient-to-r from-[#042f4b] via-[#075985] to-[#0f766e] p-6 text-white shadow-[0_20px_60px_-45px_rgba(4,47,75,0.9)] sm:p-8">
-        <Badge className="bg-white/20 text-white" tone="info">
-          Customer Onboarding
-        </Badge>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Customer Registry & KYC Intake</h1>
-        <p className="mt-2 max-w-2xl text-sm text-cyan-100 sm:text-base">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <Badge className="bg-white/20 text-white" tone="info">
+              Customer Onboarding
+            </Badge>
+            <h1 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Customer Registry & KYC Intake</h1>
+            <p className="mt-2 max-w-2xl text-sm text-cyan-100 sm:text-base">
           Capture customer details, track KYC state, and create tenant-scoped onboarding records.
-        </p>
+            </p>
+          </div>
+          {canReviewQueue && (
+            <Link
+              className="rounded-xl border border-white/40 px-4 py-2 text-sm font-medium text-white hover:bg-white/10"
+              href="/customers/queue"
+            >
+              Review queue
+            </Link>
+          )}
+        </div>
       </section>
 
       {serverError ? <Alert tone="error">{serverError}</Alert> : null}
@@ -203,9 +219,11 @@ export const CustomerOnboardingConsole = ({
                     <tr className="border-b border-slate-200 text-left text-slate-500">
                       <th className="pb-2 pr-3 font-medium">Reference</th>
                       <th className="pb-2 pr-3 font-medium">Customer</th>
+                      <th className="pb-2 pr-3 font-medium">Onboarding</th>
                       <th className="pb-2 pr-3 font-medium">KYC</th>
                       <th className="pb-2 pr-3 font-medium">Risk</th>
-                      <th className="pb-2 font-medium">Created</th>
+                      <th className="pb-2 pr-3 font-medium">Created</th>
+                      <th className="pb-2 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -217,12 +235,23 @@ export const CustomerOnboardingConsole = ({
                           <p className="text-xs text-slate-500">{customer.email}</p>
                         </td>
                         <td className="py-3 pr-3">
+                          <Badge tone="neutral">{customer.onboardingStatus}</Badge>
+                        </td>
+                        <td className="py-3 pr-3">
                           <Badge tone={toneForKyc(customer.kycStatus)}>{customer.kycStatus}</Badge>
                         </td>
                         <td className="py-3 pr-3">
                           <Badge tone="info">{customer.riskTier}</Badge>
                         </td>
                         <td className="py-3 text-slate-600">{new Date(customer.createdAt).toLocaleString()}</td>
+                        <td className="py-3">
+                          <Link
+                            className="text-sm font-medium text-cyan-700 hover:underline"
+                            href={`/customers/${customer.id}`}
+                          >
+                            Open
+                          </Link>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

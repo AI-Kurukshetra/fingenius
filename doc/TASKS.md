@@ -32,6 +32,9 @@ Status key: `[ ]` todo, `[x]` done, `[~]` in-progress, `[!]` blocked
 - [x] [2026-03-14 14:48] Add explicit `super_admin` visibility/management flow in admin UI with backend mapping to `platform_admin` membership
 - [x] [2026-03-14 15:06] Handle Supabase signup email-rate-limit with clearer UX and optional dev fallback user creation
 - [x] [2026-03-14 15:20] Eliminate full-page reloads on dashboard mutations by switching forms to client API submits with loading indicators and soft refresh
-- [ ] Integrate Stripe payments and reconciliation lifecycle
+- [x] [2026-03-14 16:18] Implement simulated payment lifecycle (DB-backed success) with provider service abstraction
+- [x] [2026-03-14 16:18] Replace onboarding document placeholders with real file uploads to Supabase Storage
+- [x] [2026-03-14 16:18] Add account status management actions (freeze/close/reactivate) with RBAC + audit logs
+- [ ] Integrate live Stripe provider adapter into payment service abstraction
 - [ ] Add unit tests (Vitest) for validations, API handlers, and ledger logic
 - [ ] Add Playwright E2E tests for critical user journeys

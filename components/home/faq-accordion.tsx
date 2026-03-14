@@ -39,7 +39,7 @@ const faqs: FaqItem[] = [
     id: "integration",
     question: "How quickly can we integrate external payment rails?",
     answer:
-      "The MVP includes one payment integration path and webhook scaffolding. You can add provider adapters while preserving the same transaction and audit contracts."
+      "Payments currently run in simulated-success mode with real database writes. A payment service abstraction is in place so a Stripe adapter can be added later without changing UI contracts."
   }
 ];
 

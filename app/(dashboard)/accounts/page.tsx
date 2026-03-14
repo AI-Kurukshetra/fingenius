@@ -13,6 +13,7 @@ type AccountsPageProps = {
   searchParams?: Promise<{
     error?: string;
     message?: string;
+    customerId?: string;
   }>;
 };
 
@@ -68,6 +69,7 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
         fullName: customer.full_name,
         externalCustomerRef: customer.external_customer_ref
       }))}
+      defaultCustomerId={params?.customerId}
       error={params?.error}
       message={params?.message}
       tenantId={context.tenantId}

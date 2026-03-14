@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
-import { logoutAction } from "@/app/(auth)/actions";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { getAuthContext } from "@/lib/auth/guards";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -53,6 +52,9 @@ export default async function DashboardLayout({
             <Link className="rounded-lg px-3 py-1.5 text-slate-600 transition hover:bg-slate-100" href="/loans">
               Loans
             </Link>
+            <Link className="rounded-lg px-3 py-1.5 text-slate-600 transition hover:bg-slate-100" href="/payments">
+              Payments
+            </Link>
             <Link className="rounded-lg px-3 py-1.5 text-slate-600 transition hover:bg-slate-100" href="/compliance">
               Compliance
             </Link>
@@ -66,11 +68,7 @@ export default async function DashboardLayout({
 
           <div className="flex items-center gap-3">
             <Badge tone="info">{user.email ?? "signed-in-user"}</Badge>
-            <form action={logoutAction}>
-              <Button size="sm" type="submit" variant="secondary">
-                Sign out
-              </Button>
-            </form>
+            <LogoutButton />
           </div>
         </div>
       </header>

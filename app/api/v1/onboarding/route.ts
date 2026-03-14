@@ -78,8 +78,10 @@ export async function POST(request: Request) {
       external_customer_ref: parsed.data.externalCustomerRef,
       full_name: parsed.data.fullName,
       email: parsed.data.email,
+      country_code: parsed.data.countryCode,
       kyc_status: "pending",
-      risk_tier: parsed.data.riskTier
+      risk_tier: parsed.data.riskTier,
+      onboarding_status: "profile_complete"
     })
     .select("id, external_customer_ref")
     .single();

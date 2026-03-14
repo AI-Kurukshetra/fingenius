@@ -9,3 +9,10 @@ export const createAccountSchema = z.object({
 });
 
 export type CreateAccountInput = z.infer<typeof createAccountSchema>;
+
+export const updateAccountStatusSchema = z.object({
+  accountId: z.string().uuid(),
+  status: z.enum(["active", "frozen", "closed"])
+});
+
+export type UpdateAccountStatusInput = z.infer<typeof updateAccountStatusSchema>;
