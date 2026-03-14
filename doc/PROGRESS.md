@@ -37,3 +37,4 @@
 [2026-03-14 18:22] codex — Hardened all client mutation form reset calls to `form?.reset?.()` so UI flows do not crash when form nodes unmount/refresh during async completion.
 [2026-03-14 18:30] codex — Fixed payment schema-cache errors for older DBs by adding fallback select/insert/update logic when `payment_transfers` is missing `idempotency_key` and other extended columns, and by adding page-level fallback query logic on `/payments`.
 [2026-03-14 18:35] codex — Updated `/api/v1/onboarding` POST duplicate handling to convert DB unique-key violation (`23505`) into a clear customer-facing conflict message for repeated `external_customer_ref` values.
+[2026-03-14 20:25] codex — Fixed localhost auth email redirects by using centralized origin resolution in signup/reset/callback flows with env-based canonical host support (`NEXT_PUBLIC_APP_URL`/`AUTH_REDIRECT_BASE_URL`).

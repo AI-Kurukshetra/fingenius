@@ -6,6 +6,7 @@ import {
   signupRateLimitHelpMessage,
   tryCreateUserWithRateLimitFallback
 } from "@/lib/auth/signup-fallback";
+import { resolveAppOrigin } from "@/lib/auth/origin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const signupSchema = z.object({
@@ -23,7 +24,13 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createServerSupabaseClient();
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
+  const origin = resolveAppOrigin(
+    {
+      get: (name: string) => request.headers.get(name)
+    },
+    request.url
+  );
   const next = searchParams.get("next") ?? "/auth/callback";
 
   const { data, error } = await supabase.auth.signUp({

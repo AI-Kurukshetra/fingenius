@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { fail, ok } from "@/lib/api/response";
+import { resolveAppOrigin } from "@/lib/auth/origin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const resetPasswordSchema = z.object({
@@ -16,7 +17,12 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createServerSupabaseClient();
-  const { origin } = new URL(request.url);
+  const origin = resolveAppOrigin(
+    {
+      get: (name: string) => request.headers.get(name)
+    },
+    request.url
+  );
   const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
     redirectTo: `${origin}/auth/callback?next=/reset-password`
   });

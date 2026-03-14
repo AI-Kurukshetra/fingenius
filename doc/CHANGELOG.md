@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 2026-03-14 (auth redirect origin hardening)
+- Added centralized app-origin resolver usage across all auth email-link and callback flows:
+  - `app/(auth)/actions.ts` (signup + password reset email redirects)
+  - `app/api/v1/auth/signup/route.ts`
+  - `app/api/v1/auth/reset-password/route.ts`
+  - `app/auth/callback/route.ts`
+- Added typed env support for canonical redirect host configuration:
+  - `NEXT_PUBLIC_APP_URL`
+  - `AUTH_REDIRECT_BASE_URL`
+- Updated `.env.example` with redirect-origin configuration notes to prevent localhost links in Supabase emails.
+
 ## 2026-03-14 (payments simulation mode, Stripe deferred)
 - Replaced direct Stripe API usage in payment flow with simulated-success service adapter (`lib/payments/service.ts`) that writes successful transfers directly to DB.
 - Updated `POST/PATCH /api/v1/payments/transfers` to use payment service abstraction; route contracts remain stable for future provider adapter swap.

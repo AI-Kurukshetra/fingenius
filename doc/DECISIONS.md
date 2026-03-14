@@ -1,5 +1,8 @@
 # DECISIONS
 
+## 2026-03-14 — Auth email redirects must resolve from canonical app URL first
+All signup/reset/callback origin resolution should prefer an explicit canonical host (`AUTH_REDIRECT_BASE_URL`, fallback `NEXT_PUBLIC_APP_URL`) before request-derived headers so Supabase verification/reset links do not regress to `localhost` behind proxies or mixed deployment topologies.
+
 ## 2026-03-14 — Payments run in simulated-success mode until external rail activation
 At this stage, payment actions write successful transfer records directly to `payment_transfers` without calling external Stripe APIs. All payment APIs/UI consume a service abstraction (`lib/payments/service.ts`) so a Stripe adapter can be enabled later with minimal surface changes.
 

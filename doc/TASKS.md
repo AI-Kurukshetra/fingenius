@@ -45,6 +45,7 @@ Status key: `[ ]` todo, `[x]` done, `[~]` in-progress, `[!]` blocked
 - [x] [2026-03-14 18:22] Guard client form reset calls against null/unmounted form references across mutation consoles
 - [x] [2026-03-14 18:30] Make payments flows backward-compatible when `payment_transfers.idempotency_key` and extended columns are missing
 - [x] [2026-03-14 18:35] Improve customer create duplicate-reference error handling for API path
+- [x] [2026-03-14 20:25] Fix Supabase auth email redirects resolving to localhost by centralizing app-origin resolution for signup/reset/callback flows
 - [ ] Integrate live Stripe provider adapter into payment service abstraction
 - [ ] Add unit tests (Vitest) for validations, API handlers, and ledger logic
 - [ ] Add Playwright E2E tests for critical user journeys

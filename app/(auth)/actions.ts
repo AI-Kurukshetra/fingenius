@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { safeLogAuditEvent } from "@/lib/audit/logger";
+import { resolveAppOrigin } from "@/lib/auth/origin";
 import {
   isSignupEmailRateLimitError,
   signupRateLimitHelpMessage,
@@ -31,7 +32,7 @@ const requireString = (value: string | undefined, pathname: string, message: str
 
 const getOrigin = async (): Promise<string> => {
   const headerStore = await headers();
-  return headerStore.get("origin") ?? "http://localhost:3000";
+  return resolveAppOrigin(headerStore);
 };
 
 export const signupAction = async (formData: FormData): Promise<void> => {
