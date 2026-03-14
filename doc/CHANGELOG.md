@@ -1,0 +1,97 @@
+# CHANGELOG
+
+## 2026-03-14
+- Added base Next.js + TypeScript + Tailwind + pnpm project scaffolding.
+- Added Supabase SSR client/middleware utilities.
+- Added RBAC, tenancy guard, audit hash-chain logger, and ledger balance utilities.
+- Added API-first route skeletons for onboarding, accounts, transactions, loans, compliance events, and admin metrics.
+- Added OpenAPI draft for `/api/v1` surface.
+- Added initial Supabase migration with multi-tenant schema, RLS policies, immutable audit/ledger protections, and ledger balance guard trigger.
+- Added project docs (`PRD`, `TASKS`, `PROGRESS`, `BLOCKERS`, `CHANGELOG`, `DECISIONS`, `SCHEMA`) and architecture README.
+- Rewrote `doc/PRD.md` into a concise hackathon-focused MVP PRD with explicit user roles, must-have scope, risks, and phased roadmap.
+- Expanded `doc/SCHEMA.md` into a full MVP data model blueprint covering all requested entities (User/Role/Permission, core banking, lending, compliance, integrations), including PK/FK, enums, indexes, audit fields, tenant scoping, and relationship map.
+- Added `doc/API_DESIGN.md` with grouped MVP API design across auth, banking, compliance, admin, integrations, payments, audit, KYC, and AML including endpoint samples, validation rules, auth, errors, and audit event requirements.
+- Updated Supabase connection wiring to use centralized public config (`NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, with legacy anon-key fallback) across browser/server/middleware clients.
+- Added `types/env.d.ts` for typed Supabase environment variables and updated `.env.example` accordingly.
+- Added migration `20260314122100_authn_authz_layer.sql` introducing `user_role_assignments`, `auth_sessions`, auth-user-to-profile trigger, and RLS/audit insert policies for auth/authz flows.
+- Added Supabase auth flows (signup/login/logout/password reset/update) via server actions and API routes under `app/api/v1/auth/*`.
+- Added RBAC guard utilities and role matrix for `admin`, `ops`, `compliance_officer`, `teller`, and `customer_support`.
+- Updated dashboard/admin/auth pages with starter UI: login, registration, forgot/reset password, permission management console, and sign-out action.
+- Added `doc/AUTH_FLOWS.md` to document signup/login/logout/password reset and permission-change flow wiring.
+- Removed `experimental.typedRoutes` from `next.config.ts` because it is currently unsupported by Next.js Turbopack in this setup.
+- Added `supabase/seed.sql` (idempotent) for empty database bootstrap, including tenant creation, admin role assignment for a provided auth email, and starter customers/accounts/transactions/loan/compliance/payment records.
+- Documented seed execution steps in `README.md`.
+- Added `scripts/seed.mjs` programmatic Supabase seeder and `package.json` script `seed` so data bootstrap can be run as `yarn seed` with env-based credentials.
+- Added `SEED_ADMIN_EMAIL` to `.env.example`.
+- Fixed Next.js 15 async dynamic API compatibility by awaiting `searchParams` in auth and admin page components.
+- Added reusable design system primitives (`Button`, `Card`, `Input`, `Badge`, `Tabs`, `Alert`, `Skeleton`, `EmptyState`, `FormField`) and global visual polish (fonts, gradients, motion classes).
+- Rebuilt auth pages (`login`, `register`, `forgot-password`, `reset-password`) into branded interactive experiences with inline validation and password-strength feedback while preserving existing server actions.
+- Upgraded admin dashboard into tabbed control center with searchable role assignments, permission matrix, and searchable audit log explorer.
+- Added profile/security page with tabs for profile update, password rotation, and session management (including revoke-all action).
+- Added unauthorized/access-denied screen and loading skeletons for auth/admin/profile views.
+- Updated dashboard shell styling and navigation hierarchy (including profile entry) for responsive fintech-grade UX.
+- Replaced static homepage with a production landing experience in `app/page.tsx` featuring premium hero layout, auth-aware CTAs, and linked product navigation.
+- Added reusable home modules in `components/home/*`: interactive dashboard preview, filtered feature explorer, live KPI section with Suspense fallback/loading/error/empty states, trust carousel, integration tabs, FAQ accordion, and structured footer.
+- Integrated homepage KPIs with Supabase-backed tenant counts (`customers`, `accounts`, `ledger_transactions`, `loan_applications`, `compliance_alerts`, `audit_logs`) while preserving existing backend logic and routes.
+- Converted dashboard feature pages from placeholders to functional modules:
+  - `customers`: onboarding form + searchable KYC table
+  - `accounts`: account creation form + portfolio table
+  - `transactions`: balanced posting form + reversal action + journal feed
+  - `loans`: origination intake + approve/reject controls
+  - `compliance`: alert logging + status update workflow
+- Added server actions for all core modules with RBAC checks, Supabase writes, audit log events, redirect-based success/error feedback, and `revalidatePath` refresh.
+- Added per-feature loading skeletons and reusable pending submit button (`components/shared/pending-submit-button.tsx`) so every async form and page has visible loading behavior.
+- Upgraded API routes to real backend/database execution with permission checks and tenant scope enforcement:
+  - `/api/v1/onboarding` (`GET`, `POST`)
+  - `/api/v1/accounts` (`GET`, `POST`)
+  - `/api/v1/transactions` (`GET`, `POST`)
+  - `/api/v1/loans` (`GET`, `POST`, `PATCH`)
+  - `/api/v1/compliance/events` (`GET`, `POST`, `PATCH`)
+  - `/api/v1/admin/metrics` (real computed metrics)
+- Enhanced admin dashboard with live operational metric cards (customers, accounts, posted transactions, open alerts, active sessions) sourced from Supabase.
+- Updated seeding flow for superadmin bootstrap:
+  - Fixed `scripts/seed.mjs` to actually read env email (removed hardcoded admin email bug).
+  - Added `SEED_SUPERADMIN_EMAIL`, `SEED_SUPERADMIN_PASSWORD`, and `SEED_SUPERADMIN_FULL_NAME` support plus optional auth user auto-creation.
+  - Changed seeded tenant membership role to `platform_admin` and kept app-level `admin` role assignment in `user_role_assignments`.
+  - Updated SQL seed config key to `app.bootstrap_superadmin_email` (with fallback to legacy `app.bootstrap_admin_email`).
+  - Updated `.env.example` and README seeding instructions to use `pnpm seed` and superadmin envs.
+- Added shared public navigation system:
+  - Added `components/public/public-navbar.tsx` with responsive desktop/mobile behavior, active route/hash states, hover micro-interactions, and auth-aware CTA actions.
+  - Added `components/public/public-layout.tsx` server wrapper to resolve auth state and render navbar consistently for public surfaces.
+  - Added `app/(auth)/layout.tsx` to apply public navbar to login/register/forgot/reset pages without duplicating page-level navbar code.
+  - Updated `app/page.tsx` to use the shared public layout, removed inline hero header nav, and aligned nav anchors (`#features`, `#security`, `#about`/`#faq`).
+  - Updated `app/unauthorized/page.tsx` to use the shared public layout while preserving existing access-denied actions.
+- Fixed dashboard logout UX by making the sign-out button an explicit submit control (`type="submit"`) so the `logoutAction` server action is triggered reliably.
+- Added password visibility toggle UX:
+  - Added reusable `components/ui/password-input.tsx` with built-in eye / hide-eye toggle and accessible button labels.
+  - Replaced password inputs in `components/auth/forms.tsx` (login, register, reset flows) with the new toggle component.
+  - Replaced password inputs in `components/profile/profile-security-console.tsx` (password rotation tab) with the same toggle behavior.
+- Fixed auth loop for newly confirmed-but-unassigned users:
+  - Updated `loginAction` to reject logins with no tenant assignment explicitly, sign out the temporary session, and return a clear `/login?error=` message.
+  - Updated auth callback default redirect from `/accounts` to `/login` with an email-confirmed message to avoid immediate account-route bounce.
+  - Added dashboard layout guard that redirects authenticated users without tenant context to `/unauthorized?reason=tenant_access_required`.
+  - Added explicit unauthorized copy for `tenant_access_required`.
+- Improved admin access-management UX and correctness:
+  - Added service-role Supabase helper (`lib/supabase/service.ts`) for privileged server-side admin workflows.
+  - Added shared access assignment sync helper (`lib/auth/access-assignment.ts`) to keep tenant membership state aligned with role assignments.
+  - Updated role grant/revoke server action and API route to synchronize `tenant_memberships` after every role change.
+  - Updated admin page to fetch a user directory from `user_profiles` and pass user-friendly listing data to the UI.
+  - Reworked admin role-management UI to remove manual UUID entry and replace it with user selection + searchable user directory (name/email/status/roles).
+- Added explicit `super_admin` handling:
+  - `super_admin` is now available in admin role selection and directory filters.
+  - Admin page now resolves and displays `super_admin` from active `tenant_memberships.role = platform_admin`.
+  - Admin action/API accept `super_admin` role and map it to `user_role_assignments.role = admin` plus explicit platform-admin membership activation/deactivation.
+  - Membership sync now preserves platform-admin users when reconciling assignments.
+- Improved signup resilience for Supabase email limits:
+  - Added shared signup fallback helper (`lib/auth/signup-fallback.ts`) to detect auth email-rate-limit errors.
+  - Added optional non-production fallback path using service-role `auth.admin.createUser` when `AUTH_ALLOW_RATE_LIMIT_SIGNUP_FALLBACK=true`.
+  - Updated web signup server action and `/api/v1/auth/signup` route to return clearer guidance when rate limits are hit.
+  - Added `AUTH_ALLOW_RATE_LIMIT_SIGNUP_FALLBACK` to `.env.example`.
+- Improved mutation UX across dashboard modules to avoid full page reload behavior:
+  - Replaced server-action form submissions in `customers`, `accounts`, `transactions`, `loans`, `compliance`, `admin`, and `profile` consoles with client-side API fetch submissions.
+  - Added explicit loading indicators for each mutation path (including row-level actions like transaction reversal, loan decisioning, and compliance status updates).
+  - Added shared client API response parser (`lib/api/client.ts`) and extended pending button support for explicit loading state (`components/shared/pending-submit-button.tsx`).
+  - Added `PATCH /api/v1/transactions` to support reversal from client-driven transaction UI.
+  - Added new profile API endpoints:
+    - `PATCH /api/v1/profile` (update profile name)
+    - `POST /api/v1/profile/revoke-sessions` (revoke current user sessions)

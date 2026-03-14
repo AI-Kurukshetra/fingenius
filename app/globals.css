@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --font-sans: var(--font-manrope), "Avenir Next", "Segoe UI", sans-serif;
+  --font-display: var(--font-space-grotesk), "Trebuchet MS", sans-serif;
+  --surface: #ffffff;
+  --surface-muted: #f3f6f9;
+  --text-main: #0f172a;
+  --text-subtle: #475569;
+}
+
+body {
+  @apply antialiased;
+  background-color: var(--surface-muted);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+}
+
+.auth-card-fade {
+  animation: authCardFade 260ms ease-out both;
+}
+
+.soft-rise {
+  animation: softRise 300ms ease-out both;
+}
+
+@keyframes authCardFade {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes softRise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

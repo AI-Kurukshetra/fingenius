@@ -1,0 +1,55 @@
+openapi: 3.0.3
+info:
+  title: Core Banking API
+  version: 1.0.0
+  description: API-first MVP for onboarding, accounts, transactions, loans, and compliance.
+servers:
+  - url: /api/v1
+paths:
+  /onboarding:
+    post:
+      summary: Create onboarding request
+      responses:
+        '202':
+          description: Onboarding accepted
+  /accounts:
+    get:
+      summary: List accounts
+      responses:
+        '200':
+          description: Account list
+    post:
+      summary: Create account
+      responses:
+        '202':
+          description: Account creation accepted
+  /transactions:
+    post:
+      summary: Post ledger transaction
+      parameters:
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: Transaction queued
+  /loans:
+    post:
+      summary: Create loan application
+      responses:
+        '202':
+          description: Loan application accepted
+  /compliance/events:
+    post:
+      summary: Log compliance event
+      responses:
+        '201':
+          description: Event logged
+  /admin/metrics:
+    get:
+      summary: Dashboard metrics
+      responses:
+        '200':
+          description: Summary metrics

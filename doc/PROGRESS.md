@@ -1,0 +1,25 @@
+# PROGRESS
+
+[2026-03-14 12:03] codex — Created fintech MVP foundation: project scaffolding, API-first routes, RBAC/audit/tenant modules, and initial Supabase schema migration.
+[2026-03-14 12:09] codex — Rewrote PRD into concise startup-hackathon format with target users, problem, goals, roles, must-have features, non-goals, metrics, risks, and phased roadmap.
+[2026-03-14 12:11] codex — Authored full schema blueprint in SCHEMA.md for Customer/Account/Transaction/Product/Loan and all requested platform entities with keys, enums, indexes, tenant scope, and relationship map.
+[2026-03-14 12:16] codex — Added `doc/API_DESIGN.md` defining MVP API groups and per-group endpoints, request/response examples, auth model, validation rules, error cases, and audit requirements.
+[2026-03-14 12:21] codex — Switched connection/auth config to Supabase public env settings via centralized config helper; updated client/server/middleware wiring and env declarations with no API/business logic changes.
+[2026-03-14 12:29] codex — Implemented Supabase-backed auth/authz layer: signup/login/logout/reset flows, session tracking table, RBAC guards, permission-change admin flow, auth event audit logging, and starter auth UI pages.
+[2026-03-14 12:29] codex — Added AUTH_FLOWS.md with concrete flow-level handoff notes for auth/session/permission operations.
+[2026-03-14 12:35] codex — Removed `experimental.typedRoutes` from `next.config.ts` to restore compatibility with Turbopack dev server.
+[2026-03-14 12:42] codex — Added `supabase/seed.sql` idempotent bootstrap script to seed tenant/core records and grant admin role to a specified existing auth user email.
+[2026-03-14 12:48] codex — Added executable `scripts/seed.mjs` and `yarn seed` command to bootstrap demo data directly from env keys without manual SQL execution.
+[2026-03-14 12:52] codex — Fixed Next.js dynamic API runtime errors by awaiting `searchParams` in login/register/forgot-password/reset-password/admin pages.
+[2026-03-14 13:05] codex — Delivered fintech-grade auth/authz UX upgrade: reusable UI components, branded auth screens with inline validation/password strength, interactive admin RBAC + audit tabs, profile/security settings with session controls, loading skeletons, and unauthorized page.
+[2026-03-14 13:20] codex — Rebuilt `app/page.tsx` into an interactive fintech landing experience with auth-aware actions, Suspense-backed live KPI section from Supabase tenant data, feature explorer filters/search, dashboard preview interactions, trust carousel, integration tabs, FAQ accordion, and linked footer navigation.
+[2026-03-14 14:05] codex — Implemented end-to-end customer/account/transaction/loan/compliance modules with real Supabase CRUD, RBAC-enforced server actions + API routes, audit events, loading skeletons, pending form states, filtered data tables, transaction reversal flow, and admin operational metrics cards.
+[2026-03-14 14:10] codex — Upgraded SQL/Node seeders for superadmin bootstrap (`SEED_SUPERADMIN_*`), fixed env-email bug in `scripts/seed.mjs`, enabled optional auth user auto-creation, and assigned seeded user as `platform_admin` plus app `admin` role.
+[2026-03-14 14:19] codex — Added shared public layout and reusable responsive navbar with auth-aware CTAs, active link states, mobile hamburger menu, and global integration across `/`, `(auth)` pages, and `/unauthorized`.
+[2026-03-14 14:24] codex — Fixed non-working dashboard sign-out by setting the logout form button to `type="submit"` so the `logoutAction` server action executes.
+[2026-03-14 14:29] codex — Added reusable password visibility toggle component with eye icon and integrated it into login/register/reset/profile password fields.
+[2026-03-14 14:34] codex — Resolved signup/login bounce loop by handling unassigned users explicitly in login action, redirecting email-confirm callback to login by default, and adding dashboard-level tenant-access guard to unauthorized route.
+[2026-03-14 14:44] codex — Added admin-side user directory (name/email/status/roles) and switched access assignment from manual UUID input to user selection; grant/revoke now synchronizes both `user_role_assignments` and `tenant_memberships`.
+[2026-03-14 14:48] codex — Added visible `super_admin` role support in admin UI and API/actions with explicit mapping to `tenant_memberships.role = platform_admin` plus admin-permission assignment semantics.
+[2026-03-14 15:06] codex — Added signup email-rate-limit handling with clearer messages and optional non-production service-role fallback (`AUTH_ALLOW_RATE_LIMIT_SIGNUP_FALLBACK`) in both server-action and API signup flows.
+[2026-03-14 15:20] codex — Refactored dashboard mutation UX (customers/accounts/transactions/loans/compliance/admin/profile) to client-side API submissions with loaders and `router.refresh()` updates, and added new API endpoints for profile updates/session revocation plus transaction reversal PATCH support.
