@@ -136,6 +136,42 @@
   - Added explicit loading indicators for each mutation path (including row-level actions like transaction reversal, loan decisioning, and compliance status updates).
   - Added shared client API response parser (`lib/api/client.ts`) and extended pending button support for explicit loading state (`components/shared/pending-submit-button.tsx`).
   - Added `PATCH /api/v1/transactions` to support reversal from client-driven transaction UI.
-  - Added new profile API endpoints:
-    - `PATCH /api/v1/profile` (update profile name)
-    - `POST /api/v1/profile/revoke-sessions` (revoke current user sessions)
+- Added new profile API endpoints:
+  - `PATCH /api/v1/profile` (update profile name)
+  - `POST /api/v1/profile/revoke-sessions` (revoke current user sessions)
+- Added `doc/UAT_TESTING_CHECKLIST.md` as the canonical QA/UAT runbook with module-wise flows, role-by-role permissions, manual step cases, expected API/DB outcomes, negative tests, audit-log checks, cross-module dependencies, recommended execution order, compact regression list, and role-permission matrix.
+- Enabled local/dev signup fallback by setting `AUTH_ALLOW_RATE_LIMIT_SIGNUP_FALLBACK='true'` in `.env` to handle Supabase email-send rate limits without blocking QA onboarding.
+- Updated `types/env.d.ts` to include `AUTH_ALLOW_RATE_LIMIT_SIGNUP_FALLBACK` in typed environment declarations.
+- Fixed async form reset runtime errors (`Cannot read properties of ... reset`) across client mutation handlers by storing `const form = event.currentTarget` before any `await` and using `form.reset()` after successful requests.
+- Applied the reset-safety fix in:
+  - `components/customers/customer-onboarding-console.tsx`
+  - `components/accounts/account-management-console.tsx`
+  - `components/transactions/transaction-console.tsx`
+  - `components/loans/loan-origination-console.tsx`
+  - `components/compliance/compliance-console.tsx`
+  - `components/payments/payment-transfer-console.tsx`
+  - `components/customers/onboarding-detail-view.tsx` (document upload form)
+- Replaced onboarding document storage integration from Supabase Storage signed URLs to server filesystem-backed files:
+  - Added `lib/onboarding/document-storage.ts` for safe path resolution, mkdir/write, and read helpers under local upload root.
+  - Updated `app/api/v1/onboarding/[customerId]/documents/route.ts` to write uploaded files to server filesystem and return protected app download URLs.
+  - Added `app/api/v1/onboarding/[customerId]/documents/[documentId]/download/route.ts` to stream files after auth + RBAC + tenant/customer ownership checks.
+  - Updated `app/(dashboard)/customers/[customerId]/page.tsx` to generate internal download URLs instead of Storage signed URLs.
+- Fixed document-upload UI layout bug (file input overflow/compression) in `components/customers/onboarding-detail-view.tsx` by replacing native file input rendering with a controlled custom picker (`Choose file` + truncated filename display).
+- Added optional env support for local document storage root:
+  - `.env.example`: `DOCUMENT_UPLOAD_ROOT`
+  - `types/env.d.ts`: `DOCUMENT_UPLOAD_ROOT?: string`
+- Fixed payment transfer creation compatibility issue for environments where `payment_transfers` does not contain `created_by` by removing `created_by` from `app/api/v1/payments/transfers/route.ts` insert payload.
+- Fixed super-admin permission resolution in `lib/auth/guards.ts` by merging roles from both `user_role_assignments` and active `tenant_memberships` for the resolved tenant, so `platform_admin` no longer degrades to read-only when mixed role rows exist.
+- Fixed `customer_documents` schema-cache compatibility errors in document onboarding flow:
+  - Updated `app/api/v1/onboarding/[customerId]/documents/route.ts` GET queries to use base columns only and return nullable `mimeType/fileSizeBytes`.
+  - Added fallback insert retry without `mime_type/file_size_bytes/uploaded_by` when those columns are missing in older DB schema versions.
+  - Updated `app/(dashboard)/customers/[customerId]/page.tsx` to avoid selecting missing `customer_documents` columns.
+  - Updated `app/api/v1/onboarding/[customerId]/documents/[documentId]/download/route.ts` to infer MIME type from filename rather than DB `mime_type` column.
+- Hardened async mutation handlers to avoid `Cannot read properties of null (reading 'reset')` by making form reset calls null-safe (`form?.reset?.()`) in customer/account/transaction/loan/compliance/payment/document-upload submit flows.
+- Fixed payment transfer schema-cache compatibility for older `payment_transfers` tables:
+  - Updated `app/api/v1/payments/transfers/route.ts` to fallback from full column select to base select when optional columns are missing.
+  - Added idempotency dedupe fallback behavior when `idempotency_key` column is unavailable (transfer still created; dedupe disabled for that schema).
+  - Added insert/update retry paths without extended columns (`idempotency_key`, `last_error`, `reconciled_at`, `metadata`, `updated_at`) when missing.
+  - Updated `app/(dashboard)/payments/page.tsx` to fallback to base transfer query when optional columns are absent.
+- Improved customer onboarding API duplicate conflict UX:
+  - Updated `app/api/v1/onboarding/route.ts` POST handler to catch unique-key violations (`error.code === '23505'`) and return a clear message: `Customer reference already exists for this tenant. Use a unique external reference.`

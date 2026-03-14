@@ -35,6 +35,16 @@ Status key: `[ ]` todo, `[x]` done, `[~]` in-progress, `[!]` blocked
 - [x] [2026-03-14 16:18] Implement simulated payment lifecycle (DB-backed success) with provider service abstraction
 - [x] [2026-03-14 16:18] Replace onboarding document placeholders with real file uploads to Supabase Storage
 - [x] [2026-03-14 16:18] Add account status management actions (freeze/close/reactivate) with RBAC + audit logs
+- [x] [2026-03-14 16:45] Create complete module-by-module, flow-wise, role-wise QA/UAT testing checklist doc
+- [x] [2026-03-14 16:57] Enable dev signup rate-limit fallback in local env and add env typing
+- [x] [2026-03-14 17:54] Fix async form reset runtime error on customer creation and shared mutation forms
+- [x] [2026-03-14 18:02] Replace onboarding document bucket storage with server filesystem + secure download route and fix upload field UI overflow bug
+- [x] [2026-03-14 18:03] Fix payment transfer create crash for environments missing `payment_transfers.created_by` column
+- [x] [2026-03-14 18:10] Fix super admin effective permissions by merging assignment and membership roles in auth context
+- [x] [2026-03-14 18:18] Make document APIs backward-compatible when `customer_documents.file_size_bytes/mime_type/uploaded_by` are missing
+- [x] [2026-03-14 18:22] Guard client form reset calls against null/unmounted form references across mutation consoles
+- [x] [2026-03-14 18:30] Make payments flows backward-compatible when `payment_transfers.idempotency_key` and extended columns are missing
+- [x] [2026-03-14 18:35] Improve customer create duplicate-reference error handling for API path
 - [ ] Integrate live Stripe provider adapter into payment service abstraction
 - [ ] Add unit tests (Vitest) for validations, API handlers, and ledger logic
 - [ ] Add Playwright E2E tests for critical user journeys

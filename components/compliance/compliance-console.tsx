@@ -84,12 +84,13 @@ export const ComplianceConsole = ({
 
   const handleCreateAlert = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const form = event.currentTarget;
     setServerError(null);
     setServerMessage(null);
     setIsCreating(true);
 
     try {
-      const formData = new FormData(event.currentTarget);
+      const formData = new FormData(form);
       await parseApiResponse(
         await fetch("/api/v1/compliance/events", {
           method: "POST",
@@ -107,7 +108,7 @@ export const ComplianceConsole = ({
       );
 
       setServerMessage("Compliance alert logged.");
-      event.currentTarget.reset();
+      form?.reset?.();
       router.refresh();
     } catch (requestError) {
       setServerError(

@@ -7,5 +7,7 @@ declare namespace NodeJS {
     SUPABASE_JWT_SECRET?: string;
     STRIPE_SECRET_KEY?: string;
     STRIPE_WEBHOOK_SECRET?: string;
+    AUTH_ALLOW_RATE_LIMIT_SIGNUP_FALLBACK?: string;
+    DOCUMENT_UPLOAD_ROOT?: string;
   }
 }

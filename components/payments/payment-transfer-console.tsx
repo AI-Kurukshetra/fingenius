@@ -87,12 +87,13 @@ export const PaymentTransferConsole = ({
 
   const handleCreateTransfer = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const form = event.currentTarget;
     setServerError(null);
     setServerMessage(null);
     setIsCreating(true);
 
     try {
-      const formData = new FormData(event.currentTarget);
+      const formData = new FormData(form);
       const idempotencyKey = String(formData.get("idempotencyKey") ?? "").trim();
 
       await parseApiResponse(
@@ -113,7 +114,7 @@ export const PaymentTransferConsole = ({
       );
 
       setServerMessage("Payment recorded successfully.");
-      event.currentTarget.reset();
+      form?.reset?.();
       router.refresh();
     } catch (requestError) {
       setServerError(

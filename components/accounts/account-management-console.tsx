@@ -78,12 +78,13 @@ export const AccountManagementConsole = ({
 
   const handleCreateAccount = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const form = event.currentTarget;
     setServerError(null);
     setServerMessage(null);
     setIsCreating(true);
 
     try {
-      const formData = new FormData(event.currentTarget);
+      const formData = new FormData(form);
       await parseApiResponse(
         await fetch("/api/v1/accounts", {
           method: "POST",
@@ -103,7 +104,7 @@ export const AccountManagementConsole = ({
       );
 
       setServerMessage("Account created.");
-      event.currentTarget.reset();
+      form?.reset?.();
       router.refresh();
     } catch (requestError) {
       setServerError(requestError instanceof Error ? requestError.message : "Unable to create account.");

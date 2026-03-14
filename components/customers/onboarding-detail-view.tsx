@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { PendingSubmitButton } from "@/components/shared/pending-submit-button";
 import { Alert } from "@/components/ui/alert";
@@ -445,14 +445,23 @@ function DocumentUploadForm({
   onError: (message: string) => void;
 }) {
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedFileName, setSelectedFileName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const form = event.currentTarget;
     onError("");
     setIsUploading(true);
 
     try {
-      const formData = new FormData(event.currentTarget);
+      const selectedFile = fileInputRef.current?.files?.[0];
+      if (!selectedFile) {
+        onError("Please choose a document file before uploading.");
+        return;
+      }
+
+      const formData = new FormData(form);
       await parseApiResponse(
         await fetch(`/api/v1/onboarding/${customerId}/documents`, {
           method: "POST",
@@ -461,7 +470,8 @@ function DocumentUploadForm({
       );
 
       onSuccess("Document uploaded successfully.");
-      event.currentTarget.reset();
+      form?.reset?.();
+      setSelectedFileName("");
     } catch (requestError) {
       onError(requestError instanceof Error ? requestError.message : "Unable to upload document.");
     } finally {
@@ -471,8 +481,8 @@ function DocumentUploadForm({
 
   return (
     <form className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-4" onSubmit={handleSubmit}>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-sm">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <label className="block min-w-0 text-sm">
           <span className="mb-1 block font-medium text-slate-700">Document type</span>
           <select className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm" name="documentType" required>
             <option value="id_proof">id_proof</option>
@@ -485,7 +495,31 @@ function DocumentUploadForm({
         </label>
 
         <FormField label="Document file">
-          <Input accept="application/pdf,image/jpeg,image/png,image/webp" name="file" required type="file" />
+          <div className="min-w-0 rounded-xl border border-slate-300 bg-white p-2 shadow-sm">
+            <input
+              accept="application/pdf,image/jpeg,image/png,image/webp"
+              className="hidden"
+              name="file"
+              onChange={(event) => {
+                setSelectedFileName(event.currentTarget.files?.[0]?.name ?? "");
+              }}
+              ref={fileInputRef}
+              required
+              type="file"
+            />
+            <div className="flex min-w-0 items-center gap-2">
+              <button
+                className="shrink-0 rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                onClick={() => fileInputRef.current?.click()}
+                type="button"
+              >
+                Choose file
+              </button>
+              <p className="truncate text-sm text-slate-600">
+                {selectedFileName || "No file selected"}
+              </p>
+            </div>
+          </div>
         </FormField>
       </div>
 

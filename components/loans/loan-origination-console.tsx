@@ -77,12 +77,13 @@ export const LoanOriginationConsole = ({
 
   const handleCreateLoan = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const form = event.currentTarget;
     setServerError(null);
     setServerMessage(null);
     setIsCreating(true);
 
     try {
-      const formData = new FormData(event.currentTarget);
+      const formData = new FormData(form);
       await parseApiResponse(
         await fetch("/api/v1/loans", {
           method: "POST",
@@ -101,7 +102,7 @@ export const LoanOriginationConsole = ({
       );
 
       setServerMessage("Loan application submitted.");
-      event.currentTarget.reset();
+      form?.reset?.();
       router.refresh();
     } catch (requestError) {
       setServerError(

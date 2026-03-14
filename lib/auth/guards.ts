@@ -19,6 +19,14 @@ const distinctRoles = (roles: Array<Role | null>): Role[] => {
   return [...new Set(roles.filter((role): role is Role => role !== null))];
 };
 
+const normalizeAssignedRole = (role: string): Role | null => {
+  if (["admin", "ops", "compliance_officer", "teller", "customer_support"].includes(role)) {
+    return role as Role;
+  }
+
+  return null;
+};
+
 const resolveTenantId = async (
   userId: string,
   requestedTenantId?: string | null
@@ -34,24 +42,6 @@ const resolveTenantId = async (
     ? await roleQuery.eq("tenant_id", requestedTenantId)
     : await roleQuery;
 
-  if (assignedRoles && assignedRoles.length > 0) {
-    const tenantId = requestedTenantId ?? assignedRoles[0]?.tenant_id ?? null;
-    const tenantAssignedRoles = assignedRoles.filter(
-      (assignment) => assignment.tenant_id === tenantId
-    );
-    const roles = distinctRoles(
-      tenantAssignedRoles.map((assignment) => {
-        return ["admin", "ops", "compliance_officer", "teller", "customer_support"].includes(
-          assignment.role
-        )
-          ? (assignment.role as Role)
-          : null;
-      })
-    );
-
-    return { tenantId, roles };
-  }
-
   const membershipQuery = supabase
     .from("tenant_memberships")
     .select("tenant_id, role")
@@ -62,14 +52,23 @@ const resolveTenantId = async (
     ? await membershipQuery.eq("tenant_id", requestedTenantId)
     : await membershipQuery;
 
-  if (!memberships || memberships.length === 0) {
+  const tenantId =
+    requestedTenantId ?? assignedRoles?.[0]?.tenant_id ?? memberships?.[0]?.tenant_id ?? null;
+
+  if (!tenantId) {
     return { tenantId: null, roles: [] };
   }
 
-  const tenantId = requestedTenantId ?? memberships[0]?.tenant_id ?? null;
-  const tenantMemberships = memberships.filter((membership) => membership.tenant_id === tenantId);
+  const tenantAssignedRoles = (assignedRoles ?? []).filter(
+    (assignment) => assignment.tenant_id === tenantId
+  );
+  const tenantMemberships = (memberships ?? []).filter((membership) => membership.tenant_id === tenantId);
+
   const roles = distinctRoles(
-    tenantMemberships.map((membership) => mapLegacyMembershipRole(membership.role))
+    [
+      ...tenantAssignedRoles.map((assignment) => normalizeAssignedRole(assignment.role)),
+      ...tenantMemberships.map((membership) => mapLegacyMembershipRole(membership.role))
+    ]
   );
 
   return { tenantId, roles };

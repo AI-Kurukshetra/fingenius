@@ -7,6 +7,11 @@ import {
   createPaymentTransferSchema,
   reconcilePaymentTransferSchema
 } from "@/lib/validations/payment";
+import type { Json } from "@/types/database";
+
+const PAYMENT_TRANSFER_SELECT_BASE =
+  "id, account_id, provider, provider_reference, amount_minor, currency, status, created_at";
+const PAYMENT_TRANSFER_SELECT_FULL = `${PAYMENT_TRANSFER_SELECT_BASE}, idempotency_key, last_error, reconciled_at, updated_at, metadata`;
 
 const canCreateTransfers = (permissions: string[]): boolean => {
   return permissions.includes("transaction:create") || permissions.includes("transaction:cash");
@@ -21,6 +26,10 @@ const canReadTransfers = (permissions: string[]): boolean => {
   );
 };
 
+const hasMissingColumnError = (message: string): boolean => {
+  return /Could not find the '.*' column/i.test(message);
+};
+
 const mapTransfer = (
   row: {
     id: string;
@@ -30,11 +39,11 @@ const mapTransfer = (
     amount_minor: number;
     currency: string;
     status: string;
-    idempotency_key: string | null;
-    last_error: string | null;
-    reconciled_at: string | null;
     created_at: string;
-    updated_at: string;
+    idempotency_key?: string | null;
+    last_error?: string | null;
+    reconciled_at?: string | null;
+    updated_at?: string | null;
   },
   accountNumber: string | undefined
 ) => {
@@ -47,11 +56,11 @@ const mapTransfer = (
     amountMinor: row.amount_minor,
     currency: row.currency,
     status: row.status,
-    idempotencyKey: row.idempotency_key,
-    lastError: row.last_error,
-    reconciledAt: row.reconciled_at,
+    idempotencyKey: row.idempotency_key ?? null,
+    lastError: row.last_error ?? null,
+    reconciledAt: row.reconciled_at ?? null,
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at ?? row.created_at
   };
 };
 
@@ -66,9 +75,7 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from("payment_transfers")
-    .select(
-      "id, account_id, provider, provider_reference, amount_minor, currency, status, idempotency_key, last_error, reconciled_at, created_at, updated_at"
-    )
+    .select(PAYMENT_TRANSFER_SELECT_FULL)
     .eq("tenant_id", auth.tenantId)
     .order("created_at", { ascending: false })
     .limit(200);
@@ -77,7 +84,26 @@ export async function GET(request: Request) {
     query = query.eq("status", status);
   }
 
-  const { data, error } = await query;
+  const primaryResult = await query;
+  const fallbackResult =
+    primaryResult.error && hasMissingColumnError(primaryResult.error.message)
+      ? await (async () => {
+          let fallbackQuery = supabase
+            .from("payment_transfers")
+            .select(PAYMENT_TRANSFER_SELECT_BASE)
+            .eq("tenant_id", auth.tenantId)
+            .order("created_at", { ascending: false })
+            .limit(200);
+
+          if (status) {
+            fallbackQuery = fallbackQuery.eq("status", status);
+          }
+
+          return fallbackQuery;
+        })()
+      : null;
+
+  const { data, error } = fallbackResult ?? primaryResult;
   if (error) return fail(error.message, 500);
 
   const accountIds = [...new Set((data ?? []).map((row) => row.account_id))];
@@ -115,15 +141,40 @@ export async function POST(request: Request) {
   if (parsed.data.tenantId !== auth.tenantId) return fail("Tenant scope violation", 403);
 
   const supabase = await createServerSupabaseClient();
+  let canUseIdempotencyColumn = true;
+  let existingByKey:
+    | {
+        id: string;
+        account_id: string;
+        provider: string;
+        provider_reference: string;
+        amount_minor: number;
+        currency: string;
+        status: string;
+        created_at: string;
+        idempotency_key?: string | null;
+        last_error?: string | null;
+        reconciled_at?: string | null;
+        updated_at?: string | null;
+      }
+    | null = null;
 
-  const { data: existingByKey } = await supabase
+  const existingByKeyResult = await supabase
     .from("payment_transfers")
-    .select(
-      "id, account_id, provider, provider_reference, amount_minor, currency, status, idempotency_key, last_error, reconciled_at, created_at, updated_at"
-    )
+    .select(PAYMENT_TRANSFER_SELECT_FULL)
     .eq("tenant_id", auth.tenantId)
     .eq("idempotency_key", idempotencyKey)
     .maybeSingle();
+
+  if (existingByKeyResult.error) {
+    if (hasMissingColumnError(existingByKeyResult.error.message)) {
+      canUseIdempotencyColumn = false;
+    } else {
+      return fail(existingByKeyResult.error.message, 500);
+    }
+  } else {
+    existingByKey = existingByKeyResult.data;
+  }
 
   if (existingByKey?.id) {
     return ok({
@@ -157,26 +208,46 @@ export async function POST(request: Request) {
     idempotencyKey
   });
 
-  const { data: created, error: insertError } = await supabase
+  const fullInsertPayload = {
+    tenant_id: auth.tenantId,
+    account_id: parsed.data.accountId,
+    provider: simulatedPayment.provider,
+    provider_reference: simulatedPayment.providerReference,
+    amount_minor: parsed.data.amountMinor,
+    currency: parsed.data.currency,
+    status: simulatedPayment.status,
+    ...(canUseIdempotencyColumn ? { idempotency_key: idempotencyKey } : {}),
+    last_error: simulatedPayment.lastError,
+    reconciled_at: simulatedPayment.reconciledAt,
+    metadata: simulatedPayment.metadata
+  };
+
+  const baseInsertPayload = {
+    tenant_id: auth.tenantId,
+    account_id: parsed.data.accountId,
+    provider: simulatedPayment.provider,
+    provider_reference: simulatedPayment.providerReference,
+    amount_minor: parsed.data.amountMinor,
+    currency: parsed.data.currency,
+    status: simulatedPayment.status
+  };
+
+  let insertResult = await supabase
     .from("payment_transfers")
-    .insert({
-      tenant_id: auth.tenantId,
-      account_id: parsed.data.accountId,
-      provider: simulatedPayment.provider,
-      provider_reference: simulatedPayment.providerReference,
-      amount_minor: parsed.data.amountMinor,
-      currency: parsed.data.currency,
-      status: simulatedPayment.status,
-      idempotency_key: idempotencyKey,
-      created_by: auth.userId,
-      last_error: simulatedPayment.lastError,
-      reconciled_at: simulatedPayment.reconciledAt,
-      metadata: simulatedPayment.metadata
-    })
-    .select(
-      "id, account_id, provider, provider_reference, amount_minor, currency, status, idempotency_key, last_error, reconciled_at, created_at, updated_at"
-    )
+    .insert(fullInsertPayload)
+    .select(PAYMENT_TRANSFER_SELECT_BASE)
     .single();
+
+  if (insertResult.error && hasMissingColumnError(insertResult.error.message)) {
+    insertResult = await supabase
+      .from("payment_transfers")
+      .insert(baseInsertPayload)
+      .select(PAYMENT_TRANSFER_SELECT_BASE)
+      .single();
+  }
+
+  const created = insertResult.data;
+  const insertError = insertResult.error;
 
   if (insertError || !created) {
     return fail(insertError?.message ?? "Unable to persist payment transfer", 409);
@@ -193,7 +264,8 @@ export async function POST(request: Request) {
       providerReference: simulatedPayment.providerReference,
       amountMinor: parsed.data.amountMinor,
       status: simulatedPayment.status,
-      mode: "simulated"
+      mode: "simulated",
+      idempotencyPersisted: canUseIdempotencyColumn
     }
   });
 
@@ -219,15 +291,26 @@ export async function PATCH(request: Request) {
   if (!canReadTransfers(auth.permissions)) return fail("Forbidden", 403);
 
   const supabase = await createServerSupabaseClient();
-  const { data: transfer, error: transferError } = await supabase
+  let canUseExtendedColumns = true;
+  let transferResult = await supabase
     .from("payment_transfers")
-    .select(
-      "id, provider_reference, status, metadata, idempotency_key, last_error, reconciled_at, created_at, updated_at"
-    )
+    .select("id, provider_reference, status, metadata")
     .eq("tenant_id", auth.tenantId)
     .eq("id", parsed.data.transferId)
     .maybeSingle();
 
+  if (transferResult.error && hasMissingColumnError(transferResult.error.message)) {
+    canUseExtendedColumns = false;
+    transferResult = await supabase
+      .from("payment_transfers")
+      .select("id, provider_reference, status")
+      .eq("tenant_id", auth.tenantId)
+      .eq("id", parsed.data.transferId)
+      .maybeSingle();
+  }
+
+  const transfer = transferResult.data;
+  const transferError = transferResult.error;
   if (transferError) return fail(transferError.message, 500);
   if (!transfer) return fail("Payment transfer not found", 404);
 
@@ -237,24 +320,39 @@ export async function PATCH(request: Request) {
     transferId: transfer.id,
     providerReference: transfer.provider_reference,
     currentStatus: transfer.status,
-    metadata: transfer.metadata
+    metadata: (transfer as { metadata?: Json }).metadata
   });
 
-  const { data: updated, error: updateError } = await supabase
+  let updateResult = await supabase
     .from("payment_transfers")
     .update({
       status: reconciled.status,
-      last_error: reconciled.lastError,
-      reconciled_at: reconciled.reconciledAt,
-      metadata: reconciled.metadata,
-      updated_at: new Date().toISOString()
+      ...(canUseExtendedColumns
+        ? {
+            last_error: reconciled.lastError,
+            reconciled_at: reconciled.reconciledAt,
+            metadata: reconciled.metadata,
+            updated_at: new Date().toISOString()
+          }
+        : {})
     })
     .eq("tenant_id", auth.tenantId)
     .eq("id", transfer.id)
-    .select(
-      "id, account_id, provider, provider_reference, amount_minor, currency, status, idempotency_key, last_error, reconciled_at, created_at, updated_at"
-    )
+    .select(PAYMENT_TRANSFER_SELECT_BASE)
     .single();
+
+  if (updateResult.error && hasMissingColumnError(updateResult.error.message)) {
+    updateResult = await supabase
+      .from("payment_transfers")
+      .update({ status: reconciled.status })
+      .eq("tenant_id", auth.tenantId)
+      .eq("id", transfer.id)
+      .select(PAYMENT_TRANSFER_SELECT_BASE)
+      .single();
+  }
+
+  const updated = updateResult.data;
+  const updateError = updateResult.error;
 
   if (updateError || !updated) {
     return fail(updateError?.message ?? "Unable to update payment transfer", 409);

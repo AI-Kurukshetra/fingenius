@@ -6,8 +6,8 @@ At this stage, payment actions write successful transfer records directly to `pa
 ## 2026-03-14 — Stripe integration shape reserved in `payment_transfers` (future)
 Keep `payment_transfers` contract and webhook endpoints Stripe-compatible so a real adapter can be enabled later; current runtime uses simulated-success service behavior without external provider calls.
 
-## 2026-03-14 — Tenant-scoped onboarding documents use private Supabase Storage
-Store onboarding documents in private bucket `customer-documents` under path `{tenant_id}/{customer_id}/...` with `storage.objects` tenant membership RLS checks and signed URL reads; persist metadata in `customer_documents` so document workflows are real uploads, not placeholders.
+## 2026-03-14 — Tenant-scoped onboarding documents use authenticated app-served files
+Store onboarding documents on server filesystem under tenant/customer path and serve files only via authenticated tenant-scoped API routes; persist metadata in `customer_documents` so document workflows are real uploads, not placeholders.
 
 ## 2026-03-14 — Multi-tenant by default
 All business tables include `tenant_id`; RLS enforces tenant membership checks using `(select auth.uid())`.
@@ -98,3 +98,33 @@ When Supabase email sends are rate-limited, allow an explicit non-production fal
 
 ## 2026-03-14 — Dashboard mutations use client API submissions with soft refresh
 To avoid full-page reload UX from redirect-based server actions, dashboard forms submit via client-side `fetch` to `/api/v1` endpoints, show explicit in-form loading states, and update data with `router.refresh()`; this keeps interactions responsive while preserving server-side data reads and existing RBAC enforcement.
+
+## 2026-03-14 — Standardize QA/UAT into a single executable checklist
+Maintain one canonical manual testing runbook (`doc/UAT_TESTING_CHECKLIST.md`) organized by module and role, with explicit happy/negative paths, RBAC assertions, expected API/DB behavior, audit-log validations, dependency checks, and final regression matrix so end-to-end verification can be executed consistently by different testers.
+
+## 2026-03-14 — Keep signup rate-limit fallback enabled in local non-production environments during QA
+Set `AUTH_ALLOW_RATE_LIMIT_SIGNUP_FALLBACK='true'` in local `.env` so Supabase email quota spikes do not block tester onboarding; fallback still only applies outside production and uses service-role user creation with `email_confirm=true`.
+
+## 2026-03-14 — In async React submit handlers, capture the form element before awaiting
+For client form mutations, store `const form = event.currentTarget` before any `await` and call `form.reset()` after success; this avoids runtime errors from referencing synthetic event targets after asynchronous boundaries.
+
+## 2026-03-14 — Store onboarding files on server filesystem behind authenticated download route
+For current stage, onboarding documents are written to server-local storage (default `./uploads/customer-documents`, configurable via `DOCUMENT_UPLOAD_ROOT`) instead of Supabase Storage bucket URLs; files are accessed only through an authenticated tenant-scoped API route that validates customer ownership and RBAC before streaming bytes.
+
+## 2026-03-14 — Keep payments API insert backward-compatible with partial schema rollout
+When deployed databases may lag behind latest migration shape, payment transfer creation should avoid hard dependency on optional columns (`created_by`) so user-facing transfer creation remains functional while still preserving actor attribution in audit logs.
+
+## 2026-03-14 — Effective permissions are the union of role assignments and active tenant membership mapping
+Auth context role derivation must merge `user_role_assignments` and `tenant_memberships` for the selected tenant; this prevents `platform_admin`/super-admin capability loss in cases where explicit assignment rows coexist with membership rows and ensures admin-level operations remain accessible as intended.
+
+## 2026-03-14 — Document API contracts should degrade gracefully across schema versions
+When environments have older `customer_documents` schemas, onboarding APIs must avoid hard dependency on optional columns (`mime_type`, `file_size_bytes`, `uploaded_by`) by selecting base columns and retrying inserts with compatible payloads so uploads/listing continue to work without immediate migration enforcement.
+
+## 2026-03-14 — Form reset in async client handlers must be null-safe
+Because client-side refresh/unmount can race with async completion, mutation handlers should not assume the submitted form node still exists at reset time; use null-safe reset calls to prevent runtime crashes in high-latency or re-render-heavy flows.
+
+## 2026-03-14 — Payments must degrade gracefully on partial transfer schema rollout
+When `payment_transfers` lacks optional columns (for example `idempotency_key`, `last_error`, `reconciled_at`, `metadata`, `updated_at`), transfers/listing/reconciliation should continue with base fields only; idempotency remains required at request contract level but server-side dedupe is best-effort and disabled when the persistence column is unavailable.
+
+## 2026-03-14 — Surface friendly conflict errors for customer reference uniqueness
+Customer onboarding API should translate raw DB unique-constraint violations into explicit user-facing conflict messages so operations users can correct duplicate `external_customer_ref` values without seeing low-level SQL errors.

@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   title: "Payments | Core Banking MVP"
 };
 
+const PAYMENT_TRANSFER_SELECT_BASE =
+  "id, account_id, provider, provider_reference, amount_minor, currency, status, created_at";
+const PAYMENT_TRANSFER_SELECT_FULL = `${PAYMENT_TRANSFER_SELECT_BASE}, idempotency_key, last_error, reconciled_at, updated_at`;
+
 type PaymentsPageProps = {
   searchParams?: Promise<{
     error?: string;
@@ -29,6 +33,10 @@ const canReadTransfers = (permissions: string[]): boolean => {
   );
 };
 
+const hasMissingColumnError = (message: string): boolean => {
+  return /Could not find the '.*' column/i.test(message);
+};
+
 export default async function PaymentsPage({ searchParams }: PaymentsPageProps) {
   const params = await searchParams;
   const context = await getAuthContext();
@@ -46,7 +54,7 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
 
   const supabase = await createServerSupabaseClient();
 
-  const [accountsResponse, transfersResponse] = await Promise.all([
+  const [accountsResponse, initialTransfersResponse] = await Promise.all([
     supabase
       .from("accounts")
       .select("id, account_number, currency, status")
@@ -55,13 +63,21 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
       .limit(250),
     supabase
       .from("payment_transfers")
-      .select(
-        "id, account_id, provider, provider_reference, amount_minor, currency, status, idempotency_key, last_error, reconciled_at, created_at, updated_at"
-      )
+      .select(PAYMENT_TRANSFER_SELECT_FULL)
       .eq("tenant_id", context.tenantId)
       .order("created_at", { ascending: false })
       .limit(250)
   ]);
+
+  const transfersResponse =
+    initialTransfersResponse.error && hasMissingColumnError(initialTransfersResponse.error.message)
+      ? await supabase
+          .from("payment_transfers")
+          .select(PAYMENT_TRANSFER_SELECT_BASE)
+          .eq("tenant_id", context.tenantId)
+          .order("created_at", { ascending: false })
+          .limit(250)
+      : initialTransfersResponse;
 
   const accounts = accountsResponse.data ?? [];
   const accountMap = new Map(accounts.map((account) => [account.id, account.account_number]));

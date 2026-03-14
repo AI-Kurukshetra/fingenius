@@ -87,6 +87,10 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
+    if (error.code === "23505") {
+      return fail("Customer reference already exists for this tenant. Use a unique external reference.", 409);
+    }
+
     return fail(error.message, 409);
   }
 

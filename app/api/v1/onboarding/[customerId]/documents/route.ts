@@ -3,12 +3,16 @@ import { randomUUID } from "crypto";
 import { fail, ok } from "@/lib/api/response";
 import { safeLogAuditEvent } from "@/lib/audit/logger";
 import { getAuthContext, hasPermissionInContext } from "@/lib/auth/guards";
+import { writeDocumentFile } from "@/lib/onboarding/document-storage";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { documentPlaceholderSchema } from "@/lib/validations/onboarding";
 
 type RouteContext = { params: Promise<{ customerId: string }> };
 
-const DOCUMENT_BUCKET = "customer-documents";
+export const runtime = "nodejs";
+const CUSTOMER_DOCUMENT_SELECT_BASE =
+  "id, document_type, storage_path, file_name, status, created_at";
+
 const MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_DOCUMENT_MIME_TYPES = new Set([
   "application/pdf",
@@ -25,6 +29,10 @@ const canReadOnboardingDocuments = (permissions: string[]): boolean => {
   return permissions.includes("customer:read") || permissions.includes("customer:write");
 };
 
+const hasMissingColumnError = (message: string): boolean => {
+  return /Could not find the '.*' column/i.test(message);
+};
+
 export async function GET(request: Request, context: RouteContext) {
   const { customerId } = await context.params;
   const auth = await getAuthContext(request);
@@ -34,41 +42,27 @@ export async function GET(request: Request, context: RouteContext) {
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from("customer_documents")
-    .select(
-      "id, document_type, storage_path, file_name, mime_type, file_size_bytes, status, created_at"
-    )
+    .select(CUSTOMER_DOCUMENT_SELECT_BASE)
     .eq("customer_id", customerId)
     .eq("tenant_id", auth.tenantId)
     .order("created_at", { ascending: false });
 
   if (error) return fail(error.message, 500);
 
-  const documentsWithUrls = await Promise.all(
-    (data ?? []).map(async (document) => {
-      let downloadUrl: string | null = null;
-      if (document.storage_path !== "pending" && document.storage_path) {
-        const signedUrlResponse = await supabase.storage
-          .from(DOCUMENT_BUCKET)
-          .createSignedUrl(document.storage_path, 60 * 10);
-
-        if (!signedUrlResponse.error) {
-          downloadUrl = signedUrlResponse.data.signedUrl;
-        }
-      }
-
-      return {
-        id: document.id,
-        documentType: document.document_type,
-        storagePath: document.storage_path,
-        fileName: document.file_name,
-        mimeType: document.mime_type,
-        fileSizeBytes: document.file_size_bytes,
-        status: document.status,
-        createdAt: document.created_at,
-        downloadUrl
-      };
-    })
-  );
+  const documentsWithUrls = (data ?? []).map((document) => ({
+    id: document.id,
+    documentType: document.document_type,
+    storagePath: document.storage_path,
+    fileName: document.file_name,
+    mimeType: null,
+    fileSizeBytes: null,
+    status: document.status,
+    createdAt: document.created_at,
+    downloadUrl:
+      document.storage_path && document.storage_path !== "pending"
+        ? `/api/v1/onboarding/${customerId}/documents/${document.id}/download`
+        : null
+  }));
 
   return ok({ documents: documentsWithUrls });
 }
@@ -123,40 +117,53 @@ export async function POST(request: Request, context: RouteContext) {
     const safeName = toSafeFileName(file.name || `${parsed.data.documentType}.dat`);
     const storagePath = `${auth.tenantId}/${customerId}/${Date.now()}-${randomUUID()}-${safeName}`;
 
-    const uploadResult = await supabase.storage.from(DOCUMENT_BUCKET).upload(storagePath, file, {
-      contentType: file.type,
-      upsert: false
-    });
-
-    if (uploadResult.error) {
-      return fail(uploadResult.error.message, 409);
+    try {
+      await writeDocumentFile(storagePath, file);
+    } catch (error) {
+      return fail(error instanceof Error ? error.message : "Unable to store uploaded document", 409);
     }
 
-    const { data: insertedDocument, error: insertError } = await supabase
+    const fullInsertPayload = {
+      tenant_id: auth.tenantId,
+      customer_id: customerId,
+      document_type: parsed.data.documentType,
+      storage_path: storagePath,
+      file_name: safeName,
+      mime_type: file.type,
+      file_size_bytes: file.size,
+      uploaded_by: auth.userId,
+      status: "uploaded"
+    };
+
+    const baseInsertPayload = {
+      tenant_id: auth.tenantId,
+      customer_id: customerId,
+      document_type: parsed.data.documentType,
+      storage_path: storagePath,
+      file_name: safeName,
+      status: "uploaded"
+    };
+
+    let insertResult = await supabase
       .from("customer_documents")
-      .insert({
-        tenant_id: auth.tenantId,
-        customer_id: customerId,
-        document_type: parsed.data.documentType,
-        storage_path: storagePath,
-        file_name: safeName,
-        mime_type: file.type,
-        file_size_bytes: file.size,
-        uploaded_by: auth.userId,
-        status: "uploaded"
-      })
-      .select(
-        "id, document_type, storage_path, file_name, mime_type, file_size_bytes, status, created_at"
-      )
+      .insert(fullInsertPayload)
+      .select(CUSTOMER_DOCUMENT_SELECT_BASE)
       .single();
+
+    if (insertResult.error && hasMissingColumnError(insertResult.error.message)) {
+      insertResult = await supabase
+        .from("customer_documents")
+        .insert(baseInsertPayload)
+        .select(CUSTOMER_DOCUMENT_SELECT_BASE)
+        .single();
+    }
+
+    const insertedDocument = insertResult.data;
+    const insertError = insertResult.error;
 
     if (insertError || !insertedDocument) {
       return fail(insertError?.message ?? "Unable to save uploaded document", 409);
     }
-
-    const signedUrlResponse = await supabase.storage
-      .from(DOCUMENT_BUCKET)
-      .createSignedUrl(storagePath, 60 * 10);
 
     await safeLogAuditEvent({
       tenantId: auth.tenantId,
@@ -178,11 +185,11 @@ export async function POST(request: Request, context: RouteContext) {
           documentType: insertedDocument.document_type,
           storagePath: insertedDocument.storage_path,
           fileName: insertedDocument.file_name,
-          mimeType: insertedDocument.mime_type,
-          fileSizeBytes: insertedDocument.file_size_bytes,
+          mimeType: file.type,
+          fileSizeBytes: file.size,
           status: insertedDocument.status,
           createdAt: insertedDocument.created_at,
-          downloadUrl: signedUrlResponse.error ? null : signedUrlResponse.data.signedUrl
+          downloadUrl: `/api/v1/onboarding/${customerId}/documents/${insertedDocument.id}/download`
         }
       },
       201

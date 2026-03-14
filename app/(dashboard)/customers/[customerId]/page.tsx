@@ -49,7 +49,7 @@ export default async function CustomerOnboardingDetailPage({ params }: PageProps
       .maybeSingle(),
     supabase
       .from("customer_documents")
-      .select("id, document_type, storage_path, file_name, mime_type, file_size_bytes, status, created_at")
+      .select("id, document_type, storage_path, file_name, status, created_at")
       .eq("customer_id", customerId)
       .eq("tenant_id", context.tenantId)
       .order("created_at", { ascending: false }),
@@ -62,32 +62,20 @@ export default async function CustomerOnboardingDetailPage({ params }: PageProps
       .limit(20)
   ]);
 
-  const documentsWithUrls = await Promise.all(
-    (documents ?? []).map(async (document) => {
-      let downloadUrl: string | null = null;
-      if (document.storage_path && document.storage_path !== "pending") {
-        const signedUrlResponse = await supabase.storage
-          .from("customer-documents")
-          .createSignedUrl(document.storage_path, 60 * 10);
-
-        if (!signedUrlResponse.error) {
-          downloadUrl = signedUrlResponse.data.signedUrl;
-        }
-      }
-
-      return {
-        id: document.id,
-        documentType: document.document_type,
-        storagePath: document.storage_path,
-        fileName: document.file_name,
-        mimeType: (document as { mime_type?: string | null }).mime_type ?? null,
-        fileSizeBytes: (document as { file_size_bytes?: number | null }).file_size_bytes ?? null,
-        status: document.status,
-        createdAt: document.created_at,
-        downloadUrl
-      };
-    })
-  );
+  const documentsWithUrls = (documents ?? []).map((document) => ({
+    id: document.id,
+    documentType: document.document_type,
+    storagePath: document.storage_path,
+    fileName: document.file_name,
+    mimeType: null,
+    fileSizeBytes: null,
+    status: document.status,
+    createdAt: document.created_at,
+    downloadUrl:
+      document.storage_path && document.storage_path !== "pending"
+        ? `/api/v1/onboarding/${customerId}/documents/${document.id}/download`
+        : null
+  }));
 
   const canWrite = hasPermissionInContext(context, "customer:write");
   const canReviewKyc =

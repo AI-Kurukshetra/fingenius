@@ -22,10 +22,11 @@
   - `reconciled_at timestamptz`, `updated_at timestamptz`
 - `customer_documents` columns:
   - `mime_type text`, `file_size_bytes bigint`, `uploaded_by uuid`
-- Supabase Storage:
-  - private bucket `customer-documents`
-  - object path convention `{tenant_id}/{customer_id}/{file}`
-  - tenant-membership RLS policies on `storage.objects` for select/insert/update/delete
+- Document file runtime storage:
+  - files are currently written to server filesystem (default `./uploads/customer-documents`, configurable with `DOCUMENT_UPLOAD_ROOT`)
+  - `customer_documents.storage_path` stores tenant/customer relative file path
+  - files are delivered via authenticated API route `/api/v1/onboarding/{customerId}/documents/{documentId}/download`
+  - note: migration-created Supabase Storage bucket/policies remain in schema history but are not used by current runtime flow
 
 ## Scope
 Initial MVP schema blueprint for these core entities:
