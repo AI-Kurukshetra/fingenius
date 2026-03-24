@@ -62,8 +62,16 @@ export const legacyMembershipRoleMap = {
 
 export type LegacyMembershipRole = keyof typeof legacyMembershipRoleMap;
 
+// Precomputed Sets for O(1) permission lookup per role.
+const rolePermissionSets: Record<Role, Set<Permission>> = Object.fromEntries(
+  (Object.entries(rolePermissions) as [Role, Permission[]][]).map(([role, perms]) => [
+    role,
+    new Set(perms),
+  ])
+) as Record<Role, Set<Permission>>;
+
 export const hasPermission = (role: Role, permission: Permission | string): boolean => {
-  return rolePermissions[role].includes(permission as Permission);
+  return rolePermissionSets[role].has(permission as Permission);
 };
 
 export const mapLegacyMembershipRole = (legacyRole: string): Role | null => {
@@ -74,7 +82,7 @@ export const getPermissionsForRoles = (roles: Role[]): Permission[] => {
   const combined = new Set<Permission>();
 
   for (const role of roles) {
-    for (const permission of rolePermissions[role]) {
+    for (const permission of rolePermissionSets[role]) {
       combined.add(permission);
     }
   }

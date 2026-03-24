@@ -6,15 +6,11 @@ export type Posting = {
 };
 
 export const assertBalancedPostings = (postings: Posting[]): void => {
-  const debitTotal = postings
-    .filter((posting) => posting.direction === "debit")
-    .reduce((sum, posting) => sum + posting.amountMinor, 0);
-
-  const creditTotal = postings
-    .filter((posting) => posting.direction === "credit")
-    .reduce((sum, posting) => sum + posting.amountMinor, 0);
-
-  if (debitTotal !== creditTotal) {
+  let balance = 0;
+  for (const posting of postings) {
+    balance += posting.direction === "debit" ? posting.amountMinor : -posting.amountMinor;
+  }
+  if (balance !== 0) {
     throw new Error("Unbalanced postings are not allowed");
   }
 };
